@@ -14,9 +14,9 @@ export const metadata = {
 export default function ContactPage() {
   return (
     <section className="section page-section" id="contact" style={{ '--wc': 'var(--w4)' }}>
-      <div className="section-head">
-        <h2>Contact</h2>
-        <span>research enquiries · no DMs for advice</span>
+      <div className="page-head">
+        <h1>Contact</h1>
+        <span className="page-sub">research enquiries · no DMs for advice</span>
       </div>
 
       <article className="dark-card">

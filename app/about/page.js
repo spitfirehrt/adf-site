@@ -35,9 +35,9 @@ const SECTIONS = [
 export default function AboutPage() {
   return (
     <section className="section page-section" id="about" style={{ '--wc': 'var(--w2)' }}>
-      <div className="section-head">
-        <h2>About</h2>
-        <span>what Atlas is · how it works · who runs it</span>
+      <div className="page-head">
+        <h1>About</h1>
+        <span className="page-sub">what Atlas is · how it works · who runs it</span>
       </div>
 
       <div className="dark-stack">
