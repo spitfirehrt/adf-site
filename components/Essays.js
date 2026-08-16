@@ -16,7 +16,6 @@ export default function Essays({ data }) {
 
   return (
     <section className="section" id="essays" style={{ '--wc': 'var(--w1)' }}>
-      <div className="eyebrow">The writing</div>
       <div className="section-head">
         <h2>Essays</h2>
         <span>
@@ -26,8 +25,8 @@ export default function Essays({ data }) {
         </span>
       </div>
       <p className="section-goal">
-        The reasoning behind the calls — supply-chain structure, where consensus is
-        looking away, and what a deviation would have to look like to be real.
+        The reasoning behind the positions — supply-chain structure, and what a
+        deviation would have to look like to be real.
       </p>
 
       {posts.length === 0 ? (

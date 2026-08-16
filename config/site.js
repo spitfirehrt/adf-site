@@ -10,6 +10,25 @@ export const site = {
   url: 'https://deviationsystems.com',
 };
 
+// ── HERO HEADLINE — OPERATOR PICKS ONE ───────────────────────────────────────
+// Three drafts in a plain, factual register. Change `heroHeadline` to 0, 1 or 2
+// to switch; that is the whole edit. Each states what the thing IS and stops —
+// the scoreboard immediately below is what does the arguing.
+//
+//   0  Tightest. Works as a label; scans in one beat. (currently live)
+//   1  Fullest. Names the mechanism — hash, fixed rule — in one sentence.
+//   2  First person. Plainest of the three; reads as a working note.
+//
+export const heroHeadlines = [
+  'Semiconductor supply-chain forecasts, timestamped before they resolve.',
+  'A public record of semiconductor supply-chain forecasts — each one dated and hashed when written, and graded on a rule fixed at the same moment.',
+  'I write down what I expect the semiconductor supply chain to do, timestamp it, and grade it on a date set in advance.',
+];
+export const heroHeadline = 0;
+
+export const heroLede =
+  'Each forecast is hashed and anchored to the Bitcoin blockchain when it is written, then graded mechanically against a rule fixed at the same moment. Open, confirmed and disconfirmed are all shown below, read live from the public ledger.';
+
 // ── THE LEDGER ───────────────────────────────────────────────────────────────
 // Public, append-only forecast record. Read live at build/revalidate time.
 export const ledger = {

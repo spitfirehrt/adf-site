@@ -1,3 +1,18 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// THE LEDGER — presentation only. The data layer (lib/ledger.js) is untouched.
+//
+// Structure is lifted from the operator's own pulse dashboard (pulse.html):
+// a dark state-strip carrying the whole scoreboard, then a TILE WALL — a
+// responsive grid of compact dark cards, ticker set large, tag-chip, the sealed
+// condition, and days-to-resolution colour-coded by proximity. The left stripe
+// reads tag (alpha vs calibration, or the verdict once graded). Tiles expand in
+// place for the full sealed detail, hash and Bitcoin proof.
+//
+// Expansion is a native <details>/<summary> — no JavaScript, no hydration, and
+// it degrades to "always open" if CSS never arrives. The reference build page
+// uses the same element for the same job.
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { ledger } from '../config/site';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -11,130 +26,250 @@ function fmtDate(iso) {
   return `${Number(d)} ${MONTHS[Number(m) - 1]} ${y}`;
 }
 
-const COMPARATORS = { '>=': '≥', '<=': '≤', '>': '>', '<': '<', '==': '=', '!=': '≠' };
+function shortDate(iso) {
+  if (!iso) return '—';
+  const [, m, d] = String(iso).slice(0, 10).split('-');
+  if (!m || !d) return String(iso);
+  return `${Number(d)} ${MONTHS[Number(m) - 1]}`;
+}
 
-// The ledger stores percentage observables as fractions (0.15 with unit "%").
-// Render them as the percent a reader expects; leave anything already in
-// percent-magnitude, or in any other unit, exactly as sealed.
-function fmtThreshold(value, unit) {
+function daysUntil(iso, now) {
+  if (!iso) return null;
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const target = Date.UTC(y, m - 1, d);
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.round((target - today) / 86400000);
+}
+
+// Proximity bands match the pulse's read of its own board: this quarter's
+// prints are near, the next one is mid, anything beyond is far.
+function proximity(days) {
+  if (days === null) return 'far';
+  if (days <= 45) return 'near';
+  if (days <= 120) return 'mid';
+  return 'far';
+}
+
+const COMPARATORS = { '>=': '≥', '<=': '≤', '>': '>', '<': '<', '==': '=', '!=': '≠' };
+const PERCENT_UNITS = new Set(['%', 'x', 'ratio', 'pct', 'percent']);
+
+// The ledger seals percentage observables as fractions under several unit
+// spellings (0.15 "%", 0.05 "x", -0.0668 "ratio"). The operator's own pulse
+// renders all of them as percentages, so this does too. The magnitude guard
+// leaves anything already in percent-magnitude, or in any other unit, as sealed.
+function fmtValue(value, unit, signed = false) {
   if (value === null || value === undefined) return '—';
-  if (unit === '%' && typeof value === 'number' && Math.abs(value) <= 1.5) {
-    return `${+(value * 100).toFixed(2)}%`;
+  const n = Number(value);
+  const u = String(unit || '').toLowerCase();
+  if (PERCENT_UNITS.has(u) && Number.isFinite(n) && Math.abs(n) <= 1.5) {
+    const pct = +(n * 100).toFixed(2);
+    return `${signed && pct > 0 ? '+' : ''}${pct}%`;
   }
+  if (u === 'usd') return `$${value}`;
   return unit ? `${value} ${unit}` : String(value);
 }
 
-function tagClass(tag) {
-  if (tag === 'ALPHA') return 'tag tag-alpha';
-  if (tag === 'CONSENSUS-HOLDS') return 'tag tag-consensus';
-  return 'tag';
+// A growth/spread observable reads better with an explicit sign; a level (a
+// margin, a share price) does not.
+const isSigned = (metric) => /yoy|growth|spread|return/i.test(metric || '');
+
+// The tile's headline ticker is the SUBJECT of the observable, not simply the
+// first address node — a claim addressed to {MU, SKHYNIX, SAMSUNG} whose
+// observable measures SKHYNIX is a SKHYNIX tile. Matches the pulse's choice.
+function tickerFor(claim) {
+  const nodes = claim.nodes || [];
+  const hay = `${claim.observable?.metric || ''} ${claim.id || ''}`.toLowerCase();
+  let best = null;
+  let bestIdx = Infinity;
+  for (const n of nodes) {
+    const i = hay.indexOf(String(n).toLowerCase());
+    if (i >= 0 && i < bestIdx) { bestIdx = i; best = n; }
+  }
+  return best || nodes[0] || '—';
 }
 
-function verdictClass(v) {
-  if (v === 'CONFIRM') return 'tag tag-confirm';
-  if (v === 'DISCONFIRM') return 'tag tag-disconfirm';
-  return 'tag tag-unresolved';
+// One-line "what kind of number is this" under the ticker.
+function kindOf(metric = '') {
+  const m = metric.toLowerCase();
+  if (/share price|price/.test(m)) return 'share price';
+  if (/gross margin|margin/.test(m)) return 'gross margin';
+  if (/total return|spread/.test(m)) return 'return spread';
+  if (/revenue/.test(m)) return /yoy|growth/.test(m) ? 'revenue · YoY' : 'revenue';
+  return 'observable';
 }
 
-function ClaimCard({ claim }) {
-  const o = claim.observable;
-  const res = claim.resolution;
-  return (
-    <article className="claim">
-      <div className="claim-top">
-        {claim.tag && <span className={tagClass(claim.tag)}>{claim.tag}</span>}
-        {res && <span className={verdictClass(res.verdict)}>{res.verdict}</span>}
-        <span className="claim-id">{claim.id}</span>
-        <span className="claim-when">
-          {res
-            ? `graded ${fmtDate(res.evaluatedUtc)}`
-            : `resolves ${fmtDate(claim.asOf)}`}
+// The ledger's own vocabulary on the chip: ALPHA is a call against consensus,
+// CONSENSUS-HOLDS is a calibration check. The exact sealed tag is shown in the
+// expanded detail, so nothing is renamed away.
+function chipFor(tag) {
+  if (tag === 'ALPHA') return { label: 'Alpha', cls: 'alpha' };
+  if (tag === 'CONSENSUS-HOLDS') return { label: 'Calibration', cls: 'cal' };
+  return { label: tag || '—', cls: 'cal' };
+}
+
+const verdictCls = (v) =>
+  v === 'CONFIRM' ? 'confirm' : v === 'DISCONFIRM' ? 'disconfirm' : 'unresolved';
+
+// ── the state strip — the whole scoreboard, above the fold ───────────────────
+
+export function LedgerStrip({ data }) {
+  const { ok, open, resolved, stats } = data;
+
+  if (!ok || !stats) {
+    return (
+      <div className="strip-band">
+        <span className="sb-mark">LIVE RECORD</span>
+        <span className="sb-meta">
+          not readable right now — the record itself is in the ledger repo
         </span>
       </div>
+    );
+  }
 
-      <p className="claim-statement">{claim.statement}</p>
+  const all = [...open, ...resolved];
+  const alpha = all.filter((c) => c.tag === 'ALPHA').length;
+  const calibration = all.filter((c) => c.tag === 'CONSENSUS-HOLDS').length;
 
-      {claim.nodes.length > 0 && (
-        <div className="claim-nodes">
-          {claim.nodes.map((n) => (
-            <span className="node" key={n}>{n}</span>
-          ))}
-        </div>
-      )}
-
-      <div className="claim-test">
-        <div>
-          PASSES IF · <b>{o.metric}</b>{' '}
-          {COMPARATORS[o.comparator] || o.comparator}{' '}
-          <b>{fmtThreshold(o.threshold, o.unit)}</b>
-          {claim.failsIf.comparator &&
-            ` · fails if ${COMPARATORS[claim.failsIf.comparator] || claim.failsIf.comparator} ${fmtThreshold(claim.failsIf.threshold, o.unit)}`}
-        </div>
-        <div>
-          SEALED · <b>{fmtDate(claim.sealedDate)}</b>
-          {claim.sealedUtc ? ` (${claim.sealedUtc})` : ''}
-        </div>
-        {claim.file.sha256 && (
-          <div className="hash">
-            SHA-256 · <b>{claim.file.sha256}</b>
-          </div>
+  return (
+    <div className="strip-band">
+      <span className="sb-mark">LIVE RECORD</span>
+      <div className="sb-sums">
+        <span className="sb hot"><b>{stats.open}</b> sealed &amp; open</span>
+        <span className="sb"><b>{alpha}</b> alpha · <b>{calibration}</b> calibration</span>
+        <span className="sb"><b>{stats.resolved}</b> resolved</span>
+        {stats.resolved > 0 && (
+          <span className="sb">
+            <b>{stats.confirm}</b> confirm · <b>{stats.disconfirm}</b> disconfirm
+          </span>
+        )}
+        {stats.resolved === 0 && stats.firstResolveDate && (
+          <span className="sb">first resolves <b>{shortDate(stats.firstResolveDate)}</b></span>
         )}
       </div>
-
-      {res && (
-        <div
-          className="verdict-line"
-          style={{
-            '--tc':
-              res.verdict === 'CONFIRM'
-                ? 'var(--ok)'
-                : res.verdict === 'DISCONFIRM'
-                  ? 'var(--you)'
-                  : 'var(--dim)',
-          }}
-        >
-          {res.verdict} · actual{' '}
-          <b>{fmtThreshold(res.actualValue, o.unit)}</b> vs{' '}
-          {COMPARATORS[res.comparator] || res.comparator}{' '}
-          {fmtThreshold(res.threshold, o.unit)}
-          {res.reason ? ` — ${res.reason}` : ''}
-        </div>
-      )}
-
-      <div className="linkrow">
-        <a href={claim.file.blobUrl} target="_blank" rel="noreferrer">
-          sealed file ↗
-        </a>
-        {claim.file.otsUrl && (
-          <a href={claim.file.otsUrl} target="_blank" rel="noreferrer">
-            bitcoin proof (.ots) ↗
-          </a>
-        )}
-        {res?.blobUrl && (
-          <a href={res.blobUrl} target="_blank" rel="noreferrer">
-            verdict file ↗
-          </a>
-        )}
-      </div>
-    </article>
+      <span className="sb-meta">epoch v1</span>
+    </div>
   );
 }
 
+// ── one tile ─────────────────────────────────────────────────────────────────
+
+function Tile({ claim, now }) {
+  const o = claim.observable;
+  const res = claim.resolution;
+  const chip = chipFor(claim.tag);
+  const days = daysUntil(claim.asOf, now);
+  const prox = proximity(days);
+  const signed = isSigned(o.metric);
+  const condition = `${COMPARATORS[o.comparator] || o.comparator} ${fmtValue(o.threshold, o.unit, signed)}`;
+  const stripe = res ? verdictCls(res.verdict) : chip.cls;
+
+  return (
+    <details className={`tile ${stripe}`}>
+      <summary>
+        <div className="t-hdr">
+          <span className="tk">{tickerFor(claim)}</span>
+          <span className={`chip ${res ? verdictCls(res.verdict) : chip.cls}`}>
+            {res ? res.verdict : chip.label}
+          </span>
+        </div>
+
+        <div className="t-kind">{kindOf(o.metric)}</div>
+        <div className="t-cond">{condition}</div>
+
+        {res ? (
+          <div className={`t-days ${verdictCls(res.verdict)}`}>
+            {fmtValue(res.actualValue, o.unit, signed)}
+            <small>actual</small>
+          </div>
+        ) : (
+          <div className={`t-days ${prox}`}>
+            {days === null ? '—' : days}
+            <small>d</small>
+          </div>
+        )}
+
+        <div className="t-when">
+          {res ? `graded ${fmtDate(res.evaluatedUtc)}` : `resolves ${fmtDate(claim.asOf)}`}
+          <span className="plus">+</span>
+        </div>
+      </summary>
+
+      <div className="t-det">
+        <dl className="kv">
+          <dt>id</dt><dd className="on">{claim.id}</dd>
+          <dt>tag</dt><dd className="on">{claim.tag}</dd>
+          {claim.nodes.length > 0 && (
+            <>
+              <dt>address</dt>
+              <dd>
+                {claim.nodes.join(', ')}
+                {claim.edges.length > 0 && (
+                  <span className="faint"> | {claim.edges.join(', ')}</span>
+                )}
+              </dd>
+            </>
+          )}
+          <dt>claim</dt><dd>{claim.statement}</dd>
+          <dt>observable</dt>
+          <dd>{o.metric} [{condition}]</dd>
+          {claim.failsIf.comparator && (
+            <>
+              <dt>fails if</dt>
+              <dd>
+                {COMPARATORS[claim.failsIf.comparator] || claim.failsIf.comparator}{' '}
+                {fmtValue(claim.failsIf.threshold, o.unit, signed)}
+              </dd>
+            </>
+          )}
+          {claim.window && <><dt>window</dt><dd>[{claim.window.join(', ')}]</dd></>}
+          <dt>sealed</dt>
+          <dd>{fmtDate(claim.sealedDate)}{claim.sealedUtc ? ` · ${claim.sealedUtc}` : ''}</dd>
+          {claim.file.sha256 && (
+            <><dt>sha-256</dt><dd className="brk">{claim.file.sha256}</dd></>
+          )}
+          {res && (
+            <>
+              <dt>verdict</dt>
+              <dd className="on">
+                {res.verdict}
+                {res.reason ? ` — ${res.reason}` : ''}
+              </dd>
+            </>
+          )}
+        </dl>
+
+        <div className="t-links">
+          <a href={claim.file.blobUrl} target="_blank" rel="noreferrer">sealed file ↗</a>
+          {claim.file.otsUrl && (
+            <a href={claim.file.otsUrl} target="_blank" rel="noreferrer">bitcoin proof ↗</a>
+          )}
+          {res?.blobUrl && (
+            <a href={res.blobUrl} target="_blank" rel="noreferrer">verdict ↗</a>
+          )}
+        </div>
+      </div>
+    </details>
+  );
+}
+
+// ── the section ──────────────────────────────────────────────────────────────
+
 export default function Ledger({ data }) {
   const { ok, open, resolved, stats } = data;
+  const now = new Date();
 
   return (
     <section className="section" id="ledger" style={{ '--wc': 'var(--w2)' }}>
-      <div className="eyebrow">The keystone</div>
       <div className="section-head">
         <h2>The ledger</h2>
         <span>sealed · hashed · bitcoin-anchored · graded mechanically</span>
       </div>
       <p className="section-goal">
-        Every forecast below was written down, hashed, and anchored to the Bitcoin
-        blockchain <em>before</em> its outcome could be known. Grading is mechanical
-        against a rule sealed at the same moment — no partial credit, no moving the
-        line afterwards. Read live from the public ledger repo.
+        Every position below was written down, hashed and anchored to Bitcoin
+        <em> before</em> its outcome could be known. Click a tile for the sealed
+        detail, its hash, and the proof. Days-to-resolution is colour-coded by
+        proximity.
       </p>
 
       {!ok && (
@@ -151,55 +286,27 @@ export default function Ledger({ data }) {
         </div>
       )}
 
-      {ok && stats && (
+      {ok && (
         <>
-          <div className="strips">
-            <div className="strip">
-              <h3>Sealed &amp; open</h3>
-              <div className="big">{stats.open}</div>
-              <p>
-                {stats.resolved === 0
-                  ? `${stats.sealed} forecasts sealed & timestamped, first resolves ${fmtDate(stats.firstResolveDate)}.`
-                  : `${stats.sealed} sealed to date. Nothing withdrawn.`}
-              </p>
-            </div>
-            <div className="strip">
-              <h3>Graded</h3>
-              <div className="big">
-                {stats.resolved === 0 ? 'none yet' : `${stats.confirm}–${stats.disconfirm}`}
-              </div>
-              <p>
-                {stats.resolved === 0
-                  ? 'No hit-rate is claimed. There is nothing to score until claims start resolving.'
-                  : `${stats.confirm} confirmed · ${stats.disconfirm} disconfirmed${stats.unresolved ? ` · ${stats.unresolved} unresolved` : ''}. Misses published same-day, same format.`}
-              </p>
-            </div>
-            <div className="strip">
-              <h3>Verify it yourself</h3>
-              <div className="big">~90 seconds</div>
-              <p>
-                Hash the file, drop the .ots proof into opentimestamps.org, read the
-                Bitcoin block time. You do not have to trust me.
-              </p>
-            </div>
-          </div>
-
           {resolved.length > 0 && (
             <>
-              <div className="eyebrow" style={{ marginTop: 26 }}>Resolved</div>
-              <div className="claims">
-                {resolved.map((c) => <ClaimCard claim={c} key={c.id} />)}
+              <div className="wall-head">
+                Resolved <span>{resolved.length} graded · hits and misses in one format</span>
+              </div>
+              <div className="wall">
+                {resolved.map((c) => <Tile claim={c} now={now} key={c.id} />)}
               </div>
             </>
           )}
 
           {open.length > 0 && (
             <>
-              <div className="eyebrow" style={{ marginTop: 26 }}>
-                Open — {open.length} live forecast{open.length === 1 ? '' : 's'}
+              <div className="wall-head">
+                Open positions{' '}
+                <span>{open.length} sealed · soonest first · click a tile for full detail</span>
               </div>
-              <div className="claims">
-                {open.map((c) => <ClaimCard claim={c} key={c.id} />)}
+              <div className="wall">
+                {open.map((c) => <Tile claim={c} now={now} key={c.id} />)}
               </div>
             </>
           )}
@@ -207,24 +314,28 @@ export default function Ledger({ data }) {
           <div className="note">
             <b>HONESTY NOTE</b>
             <div style={{ marginTop: 4 }}>
-              {stats.testDrills > 0 && (
+              {stats?.resolved === 0 && (
+                <>
+                  No hit-rate is claimed — nothing has reached its resolution date yet,
+                  so there is nothing to score.{' '}
+                </>
+              )}
+              {stats?.testDrills > 0 && (
                 <>
                   {stats.testDrills} sacrificial test drill
                   {stats.testDrills === 1 ? ' sits' : 's sit'} in the ledger too,
                   labelled and never deleted — dress rehearsals of the sealing
-                  machinery, not forecasts, so they are kept off this scoreboard.{' '}
+                  machinery, not forecasts, so they are kept off this board.{' '}
                 </>
               )}
-              The repo is append-only: nothing here is edited or removed once sealed.
+              The repo is append-only: nothing is edited or removed once sealed.
             </div>
             <div className="linkrow">
-              <a href={ledger.repoUrl} target="_blank" rel="noreferrer">
-                the full ledger ↗
-              </a>
+              <a href={ledger.repoUrl} target="_blank" rel="noreferrer">the full ledger ↗</a>
               <a href={`${ledger.repoUrl}#how-to-verify-in-90-seconds`} target="_blank" rel="noreferrer">
-                how to verify ↗
+                verify in 90 seconds ↗
               </a>
-              {stats.pulses > 0 && (
+              {stats?.pulses > 0 && (
                 <a href={`${ledger.repoUrl}/tree/${ledger.branch}/pulses`} target="_blank" rel="noreferrer">
                   {stats.pulses} public pulses ↗
                 </a>

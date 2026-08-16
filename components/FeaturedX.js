@@ -42,7 +42,6 @@ export default function FeaturedX() {
 
   return (
     <section className="section" id="featured" style={{ '--wc': 'var(--w3)' }}>
-      <div className="eyebrow">Selected threads</div>
       <div className="section-head">
         <h2>Featured on X</h2>
         <span>curated · {featuredXPosts.length} post{featuredXPosts.length === 1 ? '' : 's'}</span>

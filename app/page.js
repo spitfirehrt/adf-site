@@ -1,5 +1,5 @@
 import Hero from '../components/Hero';
-import Ledger from '../components/Ledger';
+import Ledger, { LedgerStrip } from '../components/Ledger';
 import Essays from '../components/Essays';
 import FeaturedX from '../components/FeaturedX';
 import Subscribe from '../components/Subscribe';
@@ -30,6 +30,9 @@ export default async function Page() {
 
       <main className="wrap">
         <Hero />
+        {/* The scoreboard sits directly under the hero — the whole live record
+            is on screen before a visitor scrolls anything. */}
+        <LedgerStrip data={ledgerData} />
         <Ledger data={ledgerData} />
         <Essays data={essayData} />
         <FeaturedX />

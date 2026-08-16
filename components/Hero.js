@@ -1,24 +1,18 @@
-import { site } from '../config/site';
+import { site, heroHeadlines, heroHeadline, heroLede } from '../config/site';
 
-// Operator's final hero copy — verbatim. Visual order is the reading order:
-// identity (Atlas) → what it is (ADF descriptor) → the pitch → the lede.
+// Reading order is the visual order: identity (Atlas) → what it is (ADF
+// descriptor) → the plain statement → the lede. The live scoreboard strip is
+// rendered immediately under this by page.js, so the record is on screen before
+// a visitor scrolls anything.
 export default function Hero() {
+  const headline = heroHeadlines[heroHeadline] || heroHeadlines[0];
+
   return (
     <header className="hero">
       <div className="anchor">{site.name}</div>
       <p className="subanchor">{site.descriptor}</p>
-
-      <div className="rule" />
-
-      <h1>
-        I timestamp my calls before they play out —{' '}
-        <span className="hl">and I show the ones I get wrong.</span>
-      </h1>
-      <p className="lede">
-        Dated forecasts on the semiconductor supply chain, sealed the moment I make
-        them and graded against reality. The full record is public, right and wrong
-        both. No edits, nothing deleted.
-      </p>
+      <h1>{headline}</h1>
+      <p className="lede">{heroLede}</p>
     </header>
   );
 }
