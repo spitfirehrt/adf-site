@@ -91,6 +91,15 @@ export const newsletter = {
 // ── ELSEWHERE ────────────────────────────────────────────────────────────────
 export const links = {
   x: 'https://x.com/deviationadf',
+  xHandle: '@deviationadf',
   substack: 'https://deviationsystems.substack.com',
   github: 'https://github.com/spitfirehrt/ADF-Ledger',
+};
+
+// ── CONTACT ──────────────────────────────────────────────────────────────────
+// Pseudonymity is load-bearing here: research address and handle only. Never
+// add a phone number, a location, a legal name, or anything that ties the
+// operation to a person — the work is meant to stand on the record.
+export const contact = {
+  email: 'research@deviationsystems.com',
 };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { featuredXPosts } from '../config/site';
+import { featuredXPosts, links } from '../config/site';
 
 // Curated, never a live timeline: only the URLs listed in config/site.js render.
 // If the list is empty the whole section is absent — an empty shelf says nothing
@@ -62,6 +62,12 @@ export default function FeaturedX() {
             </blockquote>
           </div>
         ))}
+      </div>
+
+      <div className="linkrow" style={{ marginTop: 12 }}>
+        <a href={links.x} target="_blank" rel="noreferrer">
+          latest from {links.xHandle} ↗
+        </a>
       </div>
     </section>
   );

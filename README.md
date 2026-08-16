@@ -26,15 +26,35 @@ public. Env vars only switch extra things on (see below).
 
 ---
 
+## Routes
+
+| Route | What it is |
+|---|---|
+| `/` | The dashboard — hero, live state strip, ledger tile wall, essays, curated X, capture |
+| `/about` | What Atlas is, how it works, why sealed — one large contained panel |
+| `/contact` | Research email, X handle, the list. Pseudonymity-safe by design |
+
+Header and footer live in `app/layout.js` and are shared by every route.
+
 ## What's on the page
 
 | Section | Source | Refresh |
 |---|---|---|
-| Hero | `components/Hero.js` (copy is verbatim, edit there) | — |
+| Hero | headline options in `config/site.js` (`heroHeadline` picks one) | — |
 | The ledger | GitHub API + raw content, `lib/ledger.js` | ISR, 1 hour |
 | Essays | Substack RSS, `lib/substack.js` | ISR, 1 hour |
 | Featured on X | `config/site.js` → `featuredXPosts` | on deploy |
 | Email capture | `app/api/subscribe/route.js` → Buttondown | live |
+| About copy | `app/about/page.js` (operator-approved, edit there) | — |
+| Contact details | `config/site.js` → `contact` / `links` | — |
+
+### The contrast rule
+
+The grid-paper is a **backdrop for cards, never a reading surface**. Every block
+of body prose sits on a defined, bordered, contrasting fill (`.section-goal` /
+`.panel` / `.prose-panel` in `app/globals.css`) with its text in full `--ink`,
+not the metadata grey. If you add a paragraph, put it in a panel — do not leave
+it on the paper.
 
 ### The ledger read
 
