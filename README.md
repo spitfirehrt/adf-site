@@ -51,10 +51,22 @@ Header and footer live in `app/layout.js` and are shared by every route.
 ### The contrast rule
 
 The grid-paper is a **backdrop for cards, never a reading surface**. Every block
-of body prose sits on a defined, bordered, contrasting fill (`.section-goal` /
-`.panel` / `.prose-panel` in `app/globals.css`) with its text in full `--ink`,
-not the metadata grey. If you add a paragraph, put it in a panel — do not leave
-it on the paper.
+of body prose sits on a defined, bordered, contrasting fill with its text at
+full contrast — never the metadata grey, never loose on the paper. Two
+treatments, both in `app/globals.css`:
+
+- **`.section-goal` / `.panel`** — light soft-fill panel, tinted with the
+  section's accent. For intro paragraphs on the home page.
+- **`.dark-card`** — the claim tile expanded: dark fill, same border, same
+  radius, same left stripe, and the same header grammar (`.dc-title` where a
+  tile's ticker sits, `.chip` on the right). Body runs at 15px/1.7 in
+  `--d-prose` — a shade off pure white so a full page of it doesn't halate,
+  still 12.4:1 on the dark fill. This is what /about and /contact are built
+  from, so they read as part of the tile wall rather than as generic pages.
+
+Stacked dark cards space with `.dark-stack` (grid + gap), **not** sibling
+margins — a sibling margin also fires between grid items and knocks the contact
+tiles out of alignment.
 
 ### The ledger read
 
