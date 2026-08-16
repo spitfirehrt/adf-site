@@ -1,0 +1,17 @@
+{
+  "name": "adf-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Atlas — ADF public landing page (live ledger, essays, curated X, email capture)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "16.3.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  }
+}
