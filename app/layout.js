@@ -2,6 +2,7 @@ import { Archivo, IBM_Plex_Sans, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import SiteHeader from '../components/SiteHeader';
 import SiteFooter from '../components/SiteFooter';
+import CapturePopup from '../components/CapturePopup';
 import { site } from '../config/site';
 
 // Same three faces and weights as the house material — self-hosted by next/font
@@ -64,6 +65,7 @@ export default function RootLayout({ children }) {
           {children}
           <SiteFooter />
         </main>
+        <CapturePopup />
       </body>
     </html>
   );

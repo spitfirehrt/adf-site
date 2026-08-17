@@ -312,7 +312,7 @@ export default function Ledger({ data }) {
           )}
 
           <div className="note">
-            <b>HONESTY NOTE</b>
+            <b>THE RECORD SO FAR</b>
             <div style={{ marginTop: 4 }}>
               {stats?.resolved === 0 && (
                 <>
